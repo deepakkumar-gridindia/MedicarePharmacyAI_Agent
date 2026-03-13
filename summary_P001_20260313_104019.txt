@@ -1,0 +1,27 @@
+CALL SUMMARY REPORT
+=============================================
+Generated: 13 March 2026, 10:40 AM
+Source   : transcript_P001_20260313_101758.txt
+=============================================
+
+**PATIENT DETAILS**
+Name: Ramesh Kumar
+Date: 13 March 2026
+Call Duration Estimate: 6 exchanges (approximately 5 minutes)
+
+**MEDICATION ADHERENCE**
+Patient is taking both Metformin and Amlodipine correctly, with no reported missed doses.
+
+**SIDE EFFECTS REPORTED**
+Patient reported experiencing chest pain.
+
+**GENERAL HEALTH**
+Patient reported being fine, but experiencing chest pain.
+
+**REFILL STATUS**
+Medicine refill due on 18 March, not confirmed.
+
+**FLAGS FOR PHARMACIST**
+Chest pain reported, immediate follow-up required.
+
+**OVERALL STATUS: ESCALATE**

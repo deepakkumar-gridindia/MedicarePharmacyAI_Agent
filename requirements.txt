@@ -1,0 +1,4 @@
+streamlit
+groq
+fpdf2
+python-dotenv

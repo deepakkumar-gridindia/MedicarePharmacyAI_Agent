@@ -1,0 +1,19 @@
+# Secret keys — NEVER upload
+.env
+
+# Python environment — not needed on cloud
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Generated files — created fresh on cloud
+transcript_*.txt
+report_*.pdf
+font_test*.pdf
+hindi_test*.pdf
+mixed_test*.pdf
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb

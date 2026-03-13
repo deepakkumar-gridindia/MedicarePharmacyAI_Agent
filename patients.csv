@@ -1,0 +1,7 @@
+patient_id,name,age,phone,language,drug_name,dosage,frequency,refill_due,condition,notes
+P001,Ramesh Kumar,58,9800000001,English,Metformin,500mg,Twice daily,2026-03-18,Diabetes,Missing evening doses
+P001,Ramesh Kumar,58,9800000001,English,Amlodipine,5mg,Once at night,2026-03-25,Blood Pressure,Taking regularly
+P002,Sunita Mehta,45,9800000002,English,Atorvastatin,10mg,Once in morning,2026-03-20,Cholesterol,No issues reported
+P002,Sunita Mehta,45,9800000002,English,Metformin,500mg,Twice daily,2026-03-19,Diabetes,Compliant
+P003,Arjun Patel,67,9800000003,English,Aspirin,75mg,Once in morning,2026-03-22,Heart,Occasional forgetfulness
+P003,Arjun Patel,67,9800000003,English,Atenolol,50mg,Once in morning,2026-03-22,Blood Pressure,Taking regularly
