@@ -22,7 +22,7 @@ client = Groq(api_key=api_key)
 
 # ── Helpers ───────────────────────────────────────────────
 def load_patients():
-    filepath = FOLDER + "\\patients.csv"
+    filepath = os.path.join(FOLDER, "patients.csv")
     patients = defaultdict(lambda: {
         "name": "", "age": "", "phone": "",
         "language": "", "drugs": []
