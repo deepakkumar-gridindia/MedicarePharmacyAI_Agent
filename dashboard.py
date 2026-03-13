@@ -17,7 +17,8 @@ st.set_page_config(
 FOLDER   = r"C:\Users\10044\OneDrive\Project\pharma_agent"
 FONT_DIR = FOLDER + "\\fonts\\"
 load_dotenv(FOLDER + "\\.env")
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+api_key = os.getenv("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY", "")
+client = Groq(api_key=api_key)
 
 # ── Helpers ───────────────────────────────────────────────
 def load_patients():
