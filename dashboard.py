@@ -14,11 +14,14 @@ st.set_page_config(
     layout="wide"
 )
 
-FOLDER   = r"C:\Users\10044\OneDrive\Project\pharma_agent"
-FONT_DIR = FOLDER + "\\fonts\\"
-load_dotenv(FOLDER + "\\.env")
+# Dynamic path — works on your laptop AND on Streamlit Cloud
+FOLDER   = os.path.dirname(os.path.abspath(__file__))
+FONT_DIR = os.path.join(FOLDER, "fonts")
+
+# Load API key — .env locally, Streamlit secrets on cloud
+load_dotenv(os.path.join(FOLDER, ".env"))
 api_key = os.getenv("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY", "")
-client = Groq(api_key=api_key)
+client  = Groq(api_key=api_key)
 
 # ── Helpers ───────────────────────────────────────────────
 def load_patients():
@@ -94,7 +97,6 @@ def format_patient_context(patient):
     return "\n".join(lines)
 
 def clean_for_latin(text):
-    """Fallback cleaner for section headers — latin-1 only areas"""
     if not text:
         return ""
     replacements = {
@@ -116,10 +118,12 @@ def check_serious_symptoms(text):
     return any(s in text.lower() for s in SERIOUS_SYMPTOMS)
 
 def get_report_files():
-    return sorted([f for f in os.listdir(FOLDER) if f.startswith("report_")], reverse=True)
+    files = [f for f in os.listdir(FOLDER) if f.startswith("report_")]
+    return sorted(files, reverse=True)
 
 def get_transcript_files():
-    return sorted([f for f in os.listdir(FOLDER) if f.startswith("transcript_")], reverse=True)
+    files = [f for f in os.listdir(FOLDER) if f.startswith("transcript_")]
+    return sorted(files, reverse=True)
 
 def generate_summary(transcript_lines, patient):
     transcript_text = "\n".join(transcript_lines)
@@ -134,8 +138,8 @@ def generate_summary(transcript_lines, patient):
         "REFILL: [refill requests or confirmations]\n"
         "FLAGS: [pharmacist follow-up needed]\n"
         "STATUS: [one word: NORMAL or MONITOR or ESCALATE]\n\n"
-        "One line per section. Plain English only in the summary.\n"
-        "Translate any Hindi content to English in your summary.\n"
+        "One line per section. Plain English only.\n"
+        "Translate any Hindi content to English.\n"
         "If not mentioned write: Not reported\n\n"
         "TRANSCRIPT:\n" + transcript_text
     )
@@ -145,9 +149,8 @@ def generate_summary(transcript_lines, patient):
             {
                 "role": "system",
                 "content": (
-                    "You are a pharmacy documentation assistant. "
-                    "Always write summaries in plain English only. "
-                    "Translate any Hindi or regional language content to English."
+                    "Pharmacy documentation assistant. "
+                    "Always write summaries in plain English only."
                 )
             },
             {"role": "user", "content": prompt}
@@ -179,36 +182,31 @@ def parse_summary(text):
 def generate_pdf(sections, transcript_lines, patient_name, source_file):
     status = sections["STATUS"].strip().upper()
     if "ESCALATE" in status:
-        bg, fg = (248, 215, 218), (114, 28, 36)
+        bg, fg       = (248, 215, 218), (114, 28, 36)
         status_label = "ESCALATE - Pharmacist Callback Required"
     elif "MONITOR" in status:
-        bg, fg = (255, 243, 205), (133, 100, 4)
+        bg, fg       = (255, 243, 205), (133, 100, 4)
         status_label = "MONITOR - Follow-up Recommended"
     else:
-        bg, fg = (212, 237, 218), (21, 87, 36)
+        bg, fg       = (212, 237, 218), (21, 87, 36)
         status_label = "NORMAL - No Action Required"
-
-    # Check if NotoSans fonts are available
-    noto_regular = FONT_DIR + "NotoSans-Regular.ttf"
-    noto_bold    = FONT_DIR + "NotoSans-Bold.ttf"
-    has_noto     = os.path.exists(noto_regular) and os.path.exists(noto_bold)
 
     class PharmaPDF(FPDF):
         def header(self):
             self.set_fill_color(45, 106, 79)
             self.rect(0, 0, 210, 28, "F")
-            self.set_font("Heading", "B", 16)
+            self.set_font("Helvetica", "B", 16)
             self.set_text_color(255, 255, 255)
             self.set_y(8)
             self.cell(0, 8, "MediCare Pharmacy", align="C", new_x="LMARGIN", new_y="NEXT")
-            self.set_font("Heading", "", 9)
+            self.set_font("Helvetica", "", 9)
             self.cell(0, 5, "AI Patient Follow-up Call Report", align="C", new_x="LMARGIN", new_y="NEXT")
             self.set_text_color(0, 0, 0)
             self.ln(8)
 
         def footer(self):
             self.set_y(-15)
-            self.set_font("Heading", "", 8)
+            self.set_font("Helvetica", "I", 8)
             self.set_text_color(150, 150, 150)
             self.cell(0, 10,
                 clean_for_latin(
@@ -219,27 +217,13 @@ def generate_pdf(sections, transcript_lines, patient_name, source_file):
             )
 
     pdf = PharmaPDF()
-
-    # Register fonts — NotoSans for Unicode/Hindi, Helvetica fallback
-    if has_noto:
-        pdf.add_font("Body",    "",  noto_regular, uni=True)
-        pdf.add_font("Body",    "B", noto_bold,    uni=True)
-        pdf.add_font("Heading", "",  noto_regular, uni=True)
-        pdf.add_font("Heading", "B", noto_bold,    uni=True)
-        body_font    = "Body"
-        heading_font = "Heading"
-    else:
-        # Fallback to Helvetica — Hindi will show as ? but no crash
-        body_font    = "Helvetica"
-        heading_font = "Helvetica"
-
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
 
     # Status banner
     pdf.set_fill_color(*bg)
     pdf.set_draw_color(*fg)
-    pdf.set_font(heading_font, "B", 13)
+    pdf.set_font("Helvetica", "B", 13)
     pdf.set_text_color(*fg)
     pdf.set_line_width(0.5)
     pdf.rect(14, pdf.get_y(), 182, 12, "FD")
@@ -253,14 +237,14 @@ def generate_pdf(sections, transcript_lines, patient_name, source_file):
     pdf.set_line_width(0.3)
     pdf.rect(14, pdf.get_y(), 182, 22, "FD")
     pdf.set_xy(16, pdf.get_y() + 3)
-    pdf.set_font(heading_font, "B", 10)
+    pdf.set_font("Helvetica", "B", 10)
     pdf.set_text_color(50, 50, 50)
     pdf.cell(60, 6, clean_for_latin("Patient : " + sections["PATIENT"]))
     pdf.cell(60, 6, clean_for_latin("Date    : " + sections["DATE"]))
     pdf.cell(60, 6, clean_for_latin("Source  : " + source_file[:28]))
     pdf.ln(16)
 
-    # Summary sections — English only (from AI summary)
+    # Summary sections
     for title, key in [
         ("Medication Adherence",  "ADHERENCE"),
         ("Side Effects Reported", "SIDE EFFECTS"),
@@ -268,37 +252,33 @@ def generate_pdf(sections, transcript_lines, patient_name, source_file):
         ("Refill Status",         "REFILL"),
         ("Flags for Pharmacist",  "FLAGS"),
     ]:
-        # Green title bar
         pdf.set_fill_color(45, 106, 79)
         pdf.set_text_color(255, 255, 255)
-        pdf.set_font(heading_font, "B", 10)
+        pdf.set_font("Helvetica", "B", 10)
         pdf.rect(14, pdf.get_y(), 182, 8, "F")
         pdf.set_xy(16, pdf.get_y() + 1)
         pdf.cell(0, 6, clean_for_latin(title))
         pdf.ln(10)
-        # Content — use NotoSans so English renders cleanly
         pdf.set_text_color(50, 50, 50)
-        pdf.set_font(body_font, "", 10)
+        pdf.set_font("Helvetica", "", 10)
         pdf.set_x(16)
         pdf.multi_cell(178, 6, clean_for_latin(sections[key]))
         pdf.ln(4)
 
-    # Full transcript — NotoSans handles Hindi characters
+    # Full transcript
     pdf.set_fill_color(45, 106, 79)
     pdf.set_text_color(255, 255, 255)
-    pdf.set_font(heading_font, "B", 10)
+    pdf.set_font("Helvetica", "B", 10)
     pdf.rect(14, pdf.get_y(), 182, 8, "F")
     pdf.set_xy(16, pdf.get_y() + 1)
     pdf.cell(0, 6, "Full Conversation Transcript")
     pdf.ln(12)
-
     pdf.set_text_color(60, 60, 60)
-    pdf.set_font(body_font, "", 8)   # NotoSans renders Hindi correctly here
+    pdf.set_font("Courier", "", 8)
     for line in transcript_lines:
         if line.startswith("Agent") or line.startswith("Patient"):
             pdf.set_x(16)
-            # Use multi_cell with unicode font — no clean needed!
-            pdf.multi_cell(178, 5, line)
+            pdf.multi_cell(178, 5, clean_for_latin(line))
 
     return bytes(pdf.output())
 
@@ -316,7 +296,7 @@ st.markdown(
 patients = load_patients()
 total    = len(patients)
 due_soon = sum(1 for p in patients.values()
-               if get_patient_status(p) in ["DUE SOON","URGENT","OVERDUE"])
+               if get_patient_status(p) in ["DUE SOON", "URGENT", "OVERDUE"])
 reports  = len(get_report_files())
 
 col1, col2, col3, col4 = st.columns(4)
@@ -393,7 +373,7 @@ with tab2:
             if not report_files:
                 st.caption("No reports yet")
             for rf in report_files[:10]:
-                with open(FOLDER + "\\" + rf, "rb") as pdf_f:
+                with open(os.path.join(FOLDER, rf), "rb") as pdf_f:
                     st.download_button(
                         label     = "Download " + rf[:35],
                         data      = pdf_f,
@@ -408,7 +388,7 @@ with tab2:
                 st.caption("No transcripts yet")
             for tf in transcript_files[:10]:
                 with st.expander(tf[:40]):
-                    with open(FOLDER + "\\" + tf, encoding="utf-8") as txf:
+                    with open(os.path.join(FOLDER, tf), encoding="utf-8") as txf:
                         st.text(txf.read())
 
 # ════════════════════════════════════════════════
@@ -548,7 +528,7 @@ with tab3:
                 with st.spinner("AI is writing the summary..."):
                     timestamp   = datetime.now().strftime("%Y%m%d_%H%M%S")
                     tx_filename = "transcript_" + active_pid + "_" + timestamp + ".txt"
-                    tx_path     = FOLDER + "\\" + tx_filename
+                    tx_path     = os.path.join(FOLDER, tx_filename)
                     header = (
                         "\nPATIENT CALL TRANSCRIPT\n" +
                         "=" * 45 + "\n" +
@@ -560,11 +540,10 @@ with tab3:
                         f.write(header)
                         f.write("\n".join(st.session_state["transcript"]))
 
-                    summary_raw = generate_summary(st.session_state["transcript"], patient)
-                    sections    = parse_summary(summary_raw)
-
+                    summary_raw  = generate_summary(st.session_state["transcript"], patient)
+                    sections     = parse_summary(summary_raw)
                     pdf_filename = "report_" + active_pid + "_" + timestamp + ".pdf"
-                    pdf_path     = FOLDER + "\\" + pdf_filename
+                    pdf_path     = os.path.join(FOLDER, pdf_filename)
                     pdf_bytes    = generate_pdf(
                         sections,
                         st.session_state["transcript"],
@@ -587,8 +566,8 @@ with tab3:
             )
 
             if st.button("Start New Call"):
-                for key in ["active_patient","chat_history","conv_history",
-                            "call_started","call_ended","transcript",
-                            "pdf_bytes","pdf_filename"]:
+                for key in ["active_patient", "chat_history", "conv_history",
+                            "call_started", "call_ended", "transcript",
+                            "pdf_bytes", "pdf_filename"]:
                     st.session_state.pop(key, None)
                 st.rerun()
